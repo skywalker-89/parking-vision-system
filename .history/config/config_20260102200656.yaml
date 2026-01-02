@@ -1,0 +1,9 @@
+# PARKING ZONE CONFIGURATION
+# ----------------------------------------
+# Replace these numbers with the ones you wrote down in Step 3!
+zones:
+  corridor:
+    - [1097, 57]
+    - [1622, 26]
+    - [2004, 1330]
+    - [722, 1330]
