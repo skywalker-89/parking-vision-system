@@ -8,19 +8,61 @@ class Visualizer:
         # Define standard colors (B, G, R)
         self.COLOR_PARKED = (0, 255, 0)  # Green
         self.COLOR_DRIVING = (0, 0, 255)  # Red
-        self.COLOR_ZONE = (255, 191, 0)  # Deep Sky Blue
+        self.COLOR_ZONE_OCCUPIED = (0, 200, 0)  # Green for occupied zones
+        self.COLOR_ZONE_VACANT = (0, 0, 200)  # Red for vacant zones
         self.COLOR_TEXT = (255, 255, 255)  # White
         self.COLOR_BG = (0, 0, 0)  # Black
 
-    def draw_zone(self, frame, zone_coords):
-        """Draws the parking corridor polygon."""
-        pts = np.array(zone_coords, np.int32).reshape((-1, 1, 2))
-        cv2.polylines(frame, [pts], isClosed=True, color=self.COLOR_ZONE, thickness=2)
-
-        # Optional: Add a semi-transparent overlay to the zone
-        overlay = frame.copy()
-        cv2.fillPoly(overlay, [pts], self.COLOR_ZONE)
-        cv2.addWeighted(overlay, 0.1, frame, 0.9, 0, frame)
+    def draw_zones(self, frame, zones):
+        """
+        Draw all parking zones on the frame.
+        
+        Args:
+            frame: Video frame
+            zones: Dict of {zone_id: ParkingZone objects}
+        """
+        for zone_id, zone in zones.items():
+            # Get zone coordinates
+            coords = list(zone.polygon.exterior.coords[:-1])  # Remove duplicate last point
+            pts = np.array(coords, np.int32).reshape((-1, 1, 2))
+            
+            # Choose color based on occupancy
+            status = zone.get_status()
+            color = self.COLOR_ZONE_OCCUPIED if status == "OCCUPIED" else self.COLOR_ZONE_VACANT
+            
+            # Draw polygon outline
+            cv2.polylines(frame, [pts], isClosed=True, color=color, thickness=3)
+            
+            # Draw semi-transparent fill
+            overlay = frame.copy()
+            cv2.fillPoly(overlay, [pts], color)
+            cv2.addWeighted(overlay, 0.15, frame, 0.85, 0, frame)
+            
+            # Draw zone label
+            # Calculate center of polygon for label placement
+            moments = cv2.moments(pts)
+            if moments['m00'] != 0:
+                cx = int(moments['m10'] / moments['m00'])
+                cy = int(moments['m01'] / moments['m00'])
+                
+                # Create label with zone ID and status
+                label = f"{zone_id}"
+                status_short = "OCC" if status == "OCCUPIED" else "VAC"
+                
+                # Draw background for label
+                (w, h), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
+                cv2.rectangle(frame, (cx - w//2 - 5, cy - h - 5), 
+                             (cx + w//2 + 5, cy + 5), self.COLOR_BG, -1)
+                
+                # Draw label text
+                cv2.putText(frame, label, (cx - w//2, cy), 
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
+                
+                # Draw status below
+                (w2, h2), _ = cv2.getTextSize(status_short, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
+                cv2.putText(frame, status_short, (cx - w2//2, cy + h + 15), 
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
+        
         return frame
 
     def draw_cars(self, frame, cars):
@@ -60,9 +102,15 @@ class Visualizer:
 
         return frame
 
-    def draw_dashboard(self, frame, total_parked, fps=None):
-        """Draws the top status bar."""
-        # Create a top banner
+    def draw_dashboard(self, frame, total_occupied, total_zones=None):
+        """
+        Draws the top status bar with multi-zone information.
+        
+        Args:
+            frame: Video frame
+            total_occupied: Number of occupied zones
+            total_zones: Total number of zones (optional)
+        """
         h, w, _ = frame.shape
         # Draw a black strip at the top
         cv2.rectangle(frame, (0, 0), (w, 50), self.COLOR_BG, -1)
@@ -78,12 +126,16 @@ class Visualizer:
             2,
         )
 
-        # Text 2: Parked Count
-        count_text = f"PARKED: {total_parked}"
+        # Text 2: Occupancy Count
+        if total_zones:
+            count_text = f"OCCUPIED: {total_occupied}/{total_zones}"
+        else:
+            count_text = f"OCCUPIED: {total_occupied}"
+            
         cv2.putText(
             frame,
             count_text,
-            (w - 250, 35),
+            (w - 300, 35),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.8,
             self.COLOR_PARKED,
