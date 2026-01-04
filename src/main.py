@@ -2,30 +2,23 @@ import cv2
 import os
 import sys
 import yaml
-from shapely.geometry import Point, Polygon
 
 # Path Fix
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from modules.detector import detector
-from src.visualization import Visualizer  # NEW IMPORT
+from modules.logic import ZoneManager
+from src.visualization import Visualizer
 
 # CONFIGURATION
 VIDEO_PATH = os.path.join("videos", "demo.mp4")
 CONFIG_PATH = os.path.join("config", "config.yaml")
-WINDOW_NAME = "Parking Vision System (Phase 6)"
+WINDOW_NAME = "Parking Vision System - Multi-Zone"
 
 
 def load_config():
     with open(CONFIG_PATH, "r") as f:
         return yaml.safe_load(f)
-
-
-def get_bottom_center(bbox):
-    x1, y1, x2, y2 = bbox
-    cx = int((x1 + x2) // 2)
-    cy = int(y2)
-    return (cx, cy)
 
 
 def main():
@@ -36,12 +29,11 @@ def main():
     # Initialize Visualizer
     viz = Visualizer(config)
 
-    # Setup Logic
-    corridor_coords = config["zones"]["corridor"]
-    corridor_poly = Polygon(corridor_coords)
-    track_history = {}
+    # Initialize Zone Manager (replaces old single-zone logic)
+    zone_manager = ZoneManager(config)
 
-    print("✅ System Ready. Press 'q' to quit.")
+    print("System Ready. Press 'q' to quit.")
+    print(f"Monitoring {len(zone_manager.get_all_zones())} parking zones\n")
 
     while True:
         success, frame = cap.read()
@@ -49,49 +41,44 @@ def main():
             break
 
         # -------------------------------------------------
-        # 2. LOGIC PIPELINE (No Drawing Here!)
+        # 2. DETECTION & LOGIC PIPELINE
         # -------------------------------------------------
         cars = detector.detect(frame)
-        parked_count = 0
 
+        # Add center point to each car for visualization
+        from modules.logic import get_bottom_center
         for car in cars:
-            track_id = car["id"]
+            car["center_point"] = get_bottom_center(car["bbox"])
 
-            # Update history
-            if track_id not in track_history:
-                track_history[track_id] = {"frames_seen": 0, "parked": False}
-            track_history[track_id]["frames_seen"] += 1
+        # Update all zones with detected vehicles
+        zone_manager.update(cars)
 
-            # Check Geometry
-            cx, cy = get_bottom_center(car["bbox"])
-            car["center_point"] = (cx, cy)  # Save for visualizer
-
-            is_inside = corridor_poly.contains(Point(cx, cy))
-            frames_seen = track_history[track_id]["frames_seen"]
-
-            # DECIDE STATUS
-            if is_inside and frames_seen > 30:
-                track_history[track_id]["parked"] = True
-            else:
-                track_history[track_id]["parked"] = False
-
-            # Attach status to car object for the visualizer
-            car["is_parked"] = track_history[track_id]["parked"]
-
-            if car["is_parked"]:
-                parked_count += 1
+        # Get occupancy summary
+        occupancy = zone_manager.get_occupancy_summary()
+        
+        # DEBUG: Print status every 30 frames
+        frame_num = int(cap.get(cv2.CAP_PROP_POS_FRAMES))
+        if frame_num % 30 == 0 and len(cars) > 0:
+            print(f"\n--- Frame {frame_num} ---")
+            for zone_id, info in occupancy.items():
+                status_symbol = "OCCUPIED" if info['status'] == "OCCUPIED" else "VACANT  "
+                vehicle_list = info['vehicle_ids'] if info['vehicle_ids'] else "none"
+                print(f"{zone_id}: {status_symbol} | Vehicles: {vehicle_list}")
+            print(f"Total: {zone_manager.get_total_occupied()}/{len(zone_manager.get_all_zones())} occupied")
 
         # -------------------------------------------------
-        # 3. VISUALIZATION PIPELINE (The Artist)
+        # 3. VISUALIZATION PIPELINE
         # -------------------------------------------------
-        # A. Draw the Zone
-        frame = viz.draw_zone(frame, corridor_coords)
+        # Draw all zones
+        frame = viz.draw_zones(frame, zone_manager.get_all_zones())
 
-        # B. Draw the Cars
+        # Draw the cars
         frame = viz.draw_cars(frame, cars)
 
-        # C. Draw the Dashboard
-        frame = viz.draw_dashboard(frame, parked_count)
+        # Draw dashboard with multi-zone info
+        total_occupied = zone_manager.get_total_occupied()
+        total_zones = len(zone_manager.get_all_zones())
+        frame = viz.draw_dashboard(frame, total_occupied, total_zones)
 
         # -------------------------------------------------
         # 4. DISPLAY
