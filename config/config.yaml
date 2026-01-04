@@ -44,7 +44,7 @@ detection:
   entry_threshold_frames: 30
   exit_threshold_frames: 90
   movement_tolerance_pixels: 20
-  overlap_ratio_threshold: 0.2
+  overlap_ratio_threshold: 0.15  # Lowered from 0.2 to catch edge cases
   
 # Tracked vehicle classes (COCO dataset)
 tracked_classes:
