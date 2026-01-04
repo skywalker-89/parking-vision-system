@@ -1,9 +1,54 @@
 # PARKING ZONE CONFIGURATION
 # ----------------------------------------
-# Replace these numbers with the ones you wrote down in Step 3!
+# Multi-zone configuration for individual parking slots
+
 zones:
-  corridor:
-    - [1097, 57]
-    - [1622, 26]
-    - [2004, 1330]
-    - [722, 1330]
+  - id: "SLOT_A1"
+    type: "parallel"
+    polygon:
+      - [879, 852]
+      - [1131, 871]
+      - [1116, 972]
+      - [857, 967]
+    capacity: 1
+    
+  - id: "SLOT_A2"
+    type: "parallel"
+    polygon:
+      - [985, 529]
+      - [1204, 542]
+      - [1193, 609]
+      - [979, 589]
+    capacity: 1
+    
+  - id: "SLOT_A3"
+    type: "parallel"
+    polygon:
+      - [1567, 906]
+      - [1860, 890]
+      - [1870, 988]
+      - [1571, 1016]
+    capacity: 1
+    
+  - id: "SLOT_A4"
+    type: "parallel"
+    polygon:
+      - [1001, 465]
+      - [1208, 481]
+      - [1194, 533]
+      - [993, 513]
+    capacity: 1
+
+# Detection settings
+detection:
+  entry_threshold_frames: 30
+  exit_threshold_frames: 90
+  movement_tolerance_pixels: 20
+  overlap_ratio_threshold: 0.2
+  
+# Tracked vehicle classes (COCO dataset)
+tracked_classes:
+  - 2   # car
+  - 3   # motorcycle  
+  - 5   # bus
+  - 7   # truck
