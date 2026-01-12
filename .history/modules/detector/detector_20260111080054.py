@@ -1,0 +1,51 @@
+import os
+from ultralytics import YOLO
+
+# 1. GET ABSOLUTE PATH to best.pt
+# This ensures Python finds the file no matter where you run the command from
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_PATH = os.path.join(CURRENT_DIR, "best.pt")
+
+print(f"🚀 Loading Custom Model from: {MODEL_PATH}")
+model = YOLO(MODEL_PATH)
+
+
+def detect(frame):
+    """
+    Runs tracking on the frame using the custom model.
+    """
+    # Run tracker
+    results = model.track(frame, persist=True, conf=0.3, verbose=False)
+
+    detections = []
+
+    for r in results:
+        for box in r.boxes:
+            if box.id is None:
+                continue
+
+            # Get the Class ID
+            class_id = int(box.cls[0])
+
+            # -----------------------------------------------------------
+            # ⚠️ DEBUGGING STEP (Check this in your terminal!)
+            # If you see boxes on screen, you can delete this print line.
+            # If NO boxes appear, look at the terminal to see what ID your
+            # friend's model is using for cars (it's likely 0 now).
+            # print(f"DEBUG: Found Object with Class ID: {class_id}")
+            # -----------------------------------------------------------
+
+            # CUSTOM MODEL FILTER
+            # If your friend trained on just cars, they are likely all Class 0.
+            # We accept Class 0 (likely car) and keep 2, 3, 5, 7 just in case.
+            if class_id in [0, 2, 3, 5, 7]:
+                detections.append(
+                    {
+                        "bbox": box.xyxy[0].tolist(),
+                        "conf": float(box.conf[0]),
+                        "cls": class_id,
+                        "id": int(box.id[0]),
+                    }
+                )
+
+    return detections

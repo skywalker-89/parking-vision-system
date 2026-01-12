@@ -1,38 +1,49 @@
+import os
 from ultralytics import YOLO
 
-# Load model once
-model = YOLO("yolo11n.pt")
+# 1. GET ABSOLUTE PATH to best.pt
+# This ensures Python finds the file no matter where you run the command from
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_PATH = os.path.join(CURRENT_DIR, "best.pt")
+
+print(f"🚀 Loading Custom Model from: {MODEL_PATH}")
+model = YOLO(MODEL_PATH)
 
 
 def detect(frame):
     """
-    Runs tracking on the frame.
-    Returns list of cars with stable IDs.
+    Runs tracking on the frame using the custom model.
     """
-    # -----------------------------------------------------
-    # KEY CHANGE: .track() instead of model()
-    # persist=True -> "Remember this car from the last frame"
-    # tracker="bytetrack.yaml" -> The algorithm we use
-    # -----------------------------------------------------
+    # Run tracker
     results = model.track(frame, persist=True, conf=0.3, verbose=False)
 
     detections = []
 
     for r in results:
         for box in r.boxes:
-            # ⚠️ CRITICAL: If YOLO can't track an object yet, box.id is None
             if box.id is None:
                 continue
 
-            # Filter for vehicles only (Car=2, Motorcycle=3, Bus=5, Truck=7)
+            # Get the Class ID
             class_id = int(box.cls[0])
-            if class_id in [2, 3, 5, 7]:
+
+            # -----------------------------------------------------------
+            # ⚠️ DEBUGGING STEP (Check this in your terminal!)
+            # If you see boxes on screen, you can delete this print line.
+            # If NO boxes appear, look at the terminal to see what ID your
+            # friend's model is using for cars (it's likely 0 now).
+            # print(f"DEBUG: Found Object with Class ID: {class_id}")
+            # -----------------------------------------------------------
+
+            # CUSTOM MODEL FILTER
+            # If your friend trained on just cars, they are likely all Class 0.
+            # We accept Class 0 (likely car) and keep 2, 3, 5, 7 just in case.
+            if class_id in [0, 2, 3, 5, 7]:
                 detections.append(
                     {
                         "bbox": box.xyxy[0].tolist(),
                         "conf": float(box.conf[0]),
                         "cls": class_id,
-                        # NEW: Get the unique ID (e.g., Car #42)
                         "id": int(box.id[0]),
                     }
                 )
