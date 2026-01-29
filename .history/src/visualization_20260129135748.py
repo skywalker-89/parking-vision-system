@@ -72,7 +72,7 @@ class Visualizer:
         # Title
         cv2.putText(
             frame,
-            "NMJ PARKING SYSTEM",
+            "AI PARKING SYSTEM",
             (20, 40),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.8,
