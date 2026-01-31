@@ -108,14 +108,17 @@ def main():
         # This matches the stable cars to the detected spots
         spot_statuses = spot_manager.check_occupancy(cars)
 
-        # Calculate Counts
-        total_spots = len(spot_statuses)
-        occupied_spots = sum(1 for s in spot_statuses if s["occupied"])
+        # Calculate Counts (excluding blocked spaces from total)
+        parking_spaces = [s for s in spot_statuses if not s.get("is_blocked", False)]
+        blocked_spaces = [s for s in spot_statuses if s.get("is_blocked", False)]
+        
+        total_spots = len(parking_spaces)  # Only count parking spaces, not blocked
+        occupied_spots = sum(1 for s in parking_spaces if s["occupied"])
 
         # -------------------------------------------------
         # 6. VISUALIZATION
         # -------------------------------------------------
-        frame = viz.draw_spots(frame, spot_statuses)  # Draw the grid
+        frame = viz.draw_spots(frame, spot_statuses)  # Draw the grid (includes blocked)
         frame = viz.draw_cars(frame, cars)  # Draw the cars
         frame = viz.draw_dashboard(frame, total_spots, occupied_spots)
 
