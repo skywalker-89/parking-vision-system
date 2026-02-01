@@ -18,7 +18,7 @@ class SpotManager:
             self.model = YOLO(model_path)
             self.demo_mode = False
         else:
-            print(f"⚠️ Spot Model not found at {model_path}")
+            print(f"Spot Model not found at {model_path}")
             print("   -> Switching to DEMO MODE (Generating fake spots)")
             self.demo_mode = True
 
@@ -30,15 +30,26 @@ class SpotManager:
         if self.demo_mode:
             self.spots = self._generate_demo_grid(frame)
         else:
+            # IMPORTANT: Resize frame to match training data preprocessing
+            # Model was trained on 432x432 images (Roboflow preprocessing)
+            # We need to resize video frame to match for consistent detection
+            original_h, original_w = frame.shape[:2]
+            frame_resized = cv2.resize(frame, (432, 432))
+            
+            print(f"Frame resized: {original_w}x{original_h} -> 432x432 (matching training data)")
+            
             # Run inference using trained segmentation model
-            # conf=0.2 means 20% confidence threshold
-            # Lower = more spots detected (might
-            #  include false positives)
+            # conf=0.5 means 50% confidence threshold
+            # Lower = more spots detected (might include false positives)
             # Higher = fewer spots detected (might miss some)
-            results = self.model(frame, conf=0.6, iou=0.5)
+            results = self.model(frame_resized, conf=0.3, iou=0.5)
+            
+            # Calculate scaling factors to map coordinates back to original frame
+            scale_x = original_w / 432
+            scale_y = original_h / 432
             
             self.spots = []
-            self.spot_masks = []  # Store polygon masks for more accurate checking
+            self.spot_masks = []  # Store polygon masks for accurate checking
             self.spot_classes = []  # Store class IDs
             
             blocked_count = 0
@@ -50,8 +61,17 @@ class SpotManager:
                     # SEGMENTATION MODE (polygons) - More accurate!
                     for i, mask in enumerate(r.masks):
                         # Get the bounding box for quick checks
-                        bbox = r.boxes[i].xyxy[0].cpu().numpy().astype(int)
-                        self.spots.append(bbox)
+                        bbox = r.boxes[i].xyxy[0].cpu().numpy()
+                        
+                        # Scale bbox back to original frame size
+                        bbox_scaled = np.array([
+                            int(bbox[0] * scale_x),
+                            int(bbox[1] * scale_y),
+                            int(bbox[2] * scale_x),
+                            int(bbox[3] * scale_y)
+                        ], dtype=int)
+                        
+                        self.spots.append(bbox_scaled)
                         
                         # Store the CLASS ID (0=blocked_space, 1=parking_space)
                         class_id = int(r.boxes[i].cls[0].cpu().numpy())
@@ -65,22 +85,38 @@ class SpotManager:
                         # Store the actual polygon mask for accurate occupancy checking
                         # masks.xy gives us the polygon points
                         if hasattr(mask, 'xy') and len(mask.xy) > 0:
-                            polygon = mask.xy[0].astype(int)  # Get first polygon
-                            self.spot_masks.append(polygon)
+                            polygon = mask.xy[0]
+                            
+                            # Scale polygon back to original frame size
+                            polygon_scaled = np.array([
+                                [int(p[0] * scale_x), int(p[1] * scale_y)]
+                                for p in polygon
+                            ], dtype=np.int32)
+                            
+                            self.spot_masks.append(polygon_scaled)
                         else:
                             # Fallback: create rectangle from bbox
-                            self.spot_masks.append(self._bbox_to_polygon(bbox))
+                            self.spot_masks.append(self._bbox_to_polygon(bbox_scaled))
                     
-                    print(f"✅ Detected {len(self.spots)} parking spots via AI (SEGMENTATION)")
+                    print(f"Detected {len(self.spots)} parking spots via AI (SEGMENTATION)")
                     print(f"   - {parking_count} available parking spaces")
                     print(f"   - {blocked_count} blocked/unavailable spaces")
                     
                 else:
                     # FALLBACK: Bounding box mode (if model isn't segmentation)
                     for i, box in enumerate(r.boxes):
-                        bbox = box.xyxy[0].cpu().numpy().astype(int)
-                        self.spots.append(bbox)
-                        self.spot_masks.append(self._bbox_to_polygon(bbox))
+                        bbox = box.xyxy[0].cpu().numpy()
+                        
+                        # Scale bbox back to original frame size
+                        bbox_scaled = np.array([
+                            int(bbox[0] * scale_x),
+                            int(bbox[1] * scale_y),
+                            int(bbox[2] * scale_x),
+                            int(bbox[3] * scale_y)
+                        ], dtype=int)
+                        
+                        self.spots.append(bbox_scaled)
+                        self.spot_masks.append(self._bbox_to_polygon(bbox_scaled))
                         
                         # Store class ID
                         class_id = int(box.cls[0].cpu().numpy())
@@ -91,7 +127,7 @@ class SpotManager:
                         else:
                             parking_count += 1
                     
-                    print(f"✅ Detected {len(self.spots)} parking spots via AI (BBOX mode)")
+                    print(f"Detected {len(self.spots)} parking spots via AI (BBOX mode)")
                     print(f"   - {parking_count} available parking spaces")
                     print(f"   - {blocked_count} blocked/unavailable spaces")
 
