@@ -5,227 +5,163 @@ from ultralytics import YOLO
 
 
 class SpotManager:
-    def __init__(self, model_path="modules/parking_logic/spots.pt"):
-        self.model_path = model_path
-        self.spots = []  # Stores [x1, y1, x2, y2] for every spot
-        self.spot_masks = []  # Stores polygon points for accurate occupancy checking
-        self.spot_classes = []  # Stores class ID: 0=blocked_space, 1=parking_space
+    def __init__(self, model_filename="spots.pt"):
+        # 1. Setup Path
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        self.model_path = os.path.join(current_dir, model_filename)
+
+        self.spots = []
         self.model = None
 
-        # load model
-        if os.path.exists(model_path):
-            print(f"Loading Spot Detection Model: {model_path}")
-            self.model = YOLO(model_path)
+        # 2. Load Model
+        if os.path.exists(self.model_path):
+            print(f"🅿️ Loading Spot Model from: {self.model_path}")
+            self.model = YOLO(self.model_path)
             self.demo_mode = False
         else:
-            print(f"Spot Model not found at {model_path}")
-            print("   -> Switching to DEMO MODE (Generating fake spots)")
+            print(f"⚠️ Spot Model not found at {self.model_path}")
+            print("   -> Switching to DEMO MODE")
             self.demo_mode = True
 
     def detect_spots_initial(self, frame):
         """
-        Runs ONCE at startup to find where the parking lines are.
-        Now handles SEGMENTATION MASKS (polygons) from trained model.
+        Runs inference ONCE. Includes NMS cleanup.
         """
         if self.demo_mode:
-            self.spots = self._generate_demo_grid(frame)
-        else:
-            # IMPORTANT: Resize frame to match training data preprocessing
-            # Model was trained on 432x432 images (Roboflow preprocessing)
-            # We need to resize video frame to match for consistent detection
-            original_h, original_w = frame.shape[:2]
-            frame_resized = cv2.resize(frame, (432, 432))
-            
-            print(f"Frame resized: {original_w}x{original_h} -> 432x432 (matching training data)")
-            
-            # Run inference using trained segmentation model
-            # conf=0.5 means 50% confidence threshold
-            # Lower = more spots detected (might include false positives)
-            # Higher = fewer spots detected (might miss some)
-            results = self.model(frame_resized, conf=0.3, iou=0.5)
-            
-            # Calculate scaling factors to map coordinates back to original frame
-            scale_x = original_w / 432
-            scale_y = original_h / 432
-            
-            self.spots = []
-            self.spot_masks = []  # Store polygon masks for accurate checking
-            self.spot_classes = []  # Store class IDs
-            
-            blocked_count = 0
-            parking_count = 0
-            
-            for r in results:
-                # Check if we have segmentation masks
-                if hasattr(r, 'masks') and r.masks is not None:
-                    # SEGMENTATION MODE (polygons) - More accurate!
-                    for i, mask in enumerate(r.masks):
-                        # Get the bounding box for quick checks
-                        bbox = r.boxes[i].xyxy[0].cpu().numpy()
-                        
-                        # Scale bbox back to original frame size
-                        bbox_scaled = np.array([
-                            int(bbox[0] * scale_x),
-                            int(bbox[1] * scale_y),
-                            int(bbox[2] * scale_x),
-                            int(bbox[3] * scale_y)
-                        ], dtype=int)
-                        
-                        self.spots.append(bbox_scaled)
-                        
-                        # Store the CLASS ID (0=blocked_space, 1=parking_space)
-                        class_id = int(r.boxes[i].cls[0].cpu().numpy())
-                        self.spot_classes.append(class_id)
-                        
-                        if class_id == 0:
-                            blocked_count += 1
-                        else:
-                            parking_count += 1
-                        
-                        # Store the actual polygon mask for accurate occupancy checking
-                        # masks.xy gives us the polygon points
-                        if hasattr(mask, 'xy') and len(mask.xy) > 0:
-                            polygon = mask.xy[0]
-                            
-                            # Scale polygon back to original frame size
-                            polygon_scaled = np.array([
-                                [int(p[0] * scale_x), int(p[1] * scale_y)]
-                                for p in polygon
-                            ], dtype=np.int32)
-                            
-                            self.spot_masks.append(polygon_scaled)
-                        else:
-                            # Fallback: create rectangle from bbox
-                            self.spot_masks.append(self._bbox_to_polygon(bbox_scaled))
-                    
-                    print(f"Detected {len(self.spots)} parking spots via AI (SEGMENTATION)")
-                    print(f"   - {parking_count} available parking spaces")
-                    print(f"   - {blocked_count} blocked/unavailable spaces")
-                    
-                else:
-                    # FALLBACK: Bounding box mode (if model isn't segmentation)
-                    for i, box in enumerate(r.boxes):
-                        bbox = box.xyxy[0].cpu().numpy()
-                        
-                        # Scale bbox back to original frame size
-                        bbox_scaled = np.array([
-                            int(bbox[0] * scale_x),
-                            int(bbox[1] * scale_y),
-                            int(bbox[2] * scale_x),
-                            int(bbox[3] * scale_y)
-                        ], dtype=int)
-                        
-                        self.spots.append(bbox_scaled)
-                        self.spot_masks.append(self._bbox_to_polygon(bbox_scaled))
-                        
-                        # Store class ID
-                        class_id = int(box.cls[0].cpu().numpy())
-                        self.spot_classes.append(class_id)
-                        
-                        if class_id == 0:
-                            blocked_count += 1
-                        else:
-                            parking_count += 1
-                    
-                    print(f"Detected {len(self.spots)} parking spots via AI (BBOX mode)")
-                    print(f"   - {parking_count} available parking spaces")
-                    print(f"   - {blocked_count} blocked/unavailable spaces")
+            return self._generate_demo_grid(frame)
 
+        print("🔍 Scanning frame for parking spots (AI)...")
+        results = self.model(frame, conf=0.15, verbose=True)  # Slightly higher conf
+
+        raw_spots = []
+        confidences = []
+
+        # 1. Collect all detections
+        for r in results:
+            for box in r.boxes:
+                coords = box.xyxy[0].cpu().numpy().astype(int)
+                conf = float(box.conf[0])
+                raw_spots.append(coords)
+                confidences.append(conf)
+
+        # 2. Apply NMS (Remove duplicates)
+        # This uses your friend's logic to clean up the grid
+        keep_indices = self._nms_xyxy(raw_spots, confidences, iou_th=0.4)
+        self.spots = [raw_spots[i] for i in keep_indices]
+
+        # 3. Sort spots (Left->Right, Top->Bottom) for clean numbering
+        self.spots = sorted(self.spots, key=lambda b: (b[1], b[0]))
+
+        print(f"✅ AI Detected {len(self.spots)} Parking Spots (Cleaned).")
         return self.spots
 
     def check_occupancy(self, cars):
         """
-        Matches Cars to Spots using POLYGON-based checking (more accurate!).
-        Returns a list of spot dictionaries:
-        [{'bbox': [x1,y1,x2,y2], 'occupied': True/False, 'car_id': 5, 
-          'is_blocked': True/False, 'class_id': 0/1}, ...]
-        
-        Class IDs:
-          0 = blocked_space (permanently unavailable - reserved, disabled, etc.)
-          1 = parking_space (normal spot that can be occupied by cars)
+        Matches Cars to Spots using IoU + Center Check.
         """
         spot_statuses = []
 
-        for i, spot in enumerate(self.spots):
-            sx1, sy1, sx2, sy2 = spot
-
-            # Get the polygon mask for this spot (if available)
-            spot_poly = self.spot_masks[i] if i < len(self.spot_masks) else self._bbox_to_polygon(spot)
-            
-            # Get the class ID (0=blocked, 1=parking)
-            class_id = self.spot_classes[i] if i < len(self.spot_classes) else 1  # Default to parking
-            is_blocked_space = (class_id == 0)
-
+        for i, spot in enumerate(self.spots, start=1):
             is_occupied = False
             occupying_car_id = None
 
-            # Only check for car occupancy if it's a PARKING space (not blocked)
-            if not is_blocked_space:
-                for car in cars:
-                    # We check if the Car's Bottom-Center is inside the Spot POLYGON
-                    cx, cy = car["center_point"]
+            # Spot Geometry
+            sx1, sy1, sx2, sy2 = spot
 
-                    # Check 1: Is the car center inside the spot polygon?
-                    if self._is_point_in_polygon((cx, cy), spot_poly):
-                        # Check 2: Is the car actually PARKED?
-                        if car.get("is_parked", False):
-                            is_occupied = True
-                            occupying_car_id = car["id"]
-                            break  # Found a car, stop checking this spot
+            for car in cars:
+                # Car Geometry
+                car_box = car["bbox"]
 
-            spot_statuses.append({
-                "bbox": spot,
-                "occupied": is_occupied,
-                "car_id": occupying_car_id,
-                "is_blocked": is_blocked_space,  # True if permanently blocked
-                "class_id": class_id  # 0=blocked_space, 1=parking_space
-            })
+                # LOGIC 1: Calculate IoU (Intersection over Union)
+                iou = self._iou_xyxy(car_box, spot)
+
+                # LOGIC 2: Center Point Check
+                cx, cy = car["center_point"]
+                center_inside = (sx1 <= cx <= sx2) and (sy1 <= cy <= sy2)
+
+                # COMBINED DECISION:
+                # Occupied if (High Overlap > 10%) OR (Center is strictly inside)
+                # AND the car must be "Stationary/Parked"
+                if iou > 0.10 or center_inside:
+                    if car.get("is_parked", False):
+                        is_occupied = True
+                        occupying_car_id = car["id"]
+                        break
+
+            spot_statuses.append(
+                {
+                    "id": i,
+                    "bbox": spot,
+                    "occupied": is_occupied,
+                    "car_id": occupying_car_id,
+                }
+            )
 
         return spot_statuses
 
-    def _is_point_in_polygon(self, point, polygon):
-        """
-        Check if a point (x, y) is inside a polygon using cv2.pointPolygonTest.
-        More accurate than simple rectangle check!
-        """
-        if len(polygon) < 3:
-            # Not a valid polygon, fall back to rectangle
-            return False
-        
-        # cv2.pointPolygonTest returns:
-        # > 0: point is inside
-        # = 0: point is on the edge
-        # < 0: point is outside
-        result = cv2.pointPolygonTest(polygon, point, False)
-        return result >= 0
-    
-    def _bbox_to_polygon(self, bbox):
-        """Convert bounding box [x1,y1,x2,y2] to polygon points"""
-        x1, y1, x2, y2 = bbox
-        return np.array([
-            [x1, y1],
-            [x2, y1],
-            [x2, y2],
-            [x1, y2]
-        ], dtype=np.int32)
+    # --- HELPERS FROM FRIEND'S CODE ---
+
+    def _iou_xyxy(self, a, b):
+        """Calculates Intersection over Union between two boxes."""
+        ax1, ay1, ax2, ay2 = a
+        bx1, by1, bx2, by2 = b
+
+        ix1 = max(ax1, bx1)
+        iy1 = max(ay1, by1)
+        ix2 = min(ax2, bx2)
+        iy2 = min(ay2, by2)
+
+        iw = max(0.0, ix2 - ix1)
+        ih = max(0.0, iy2 - iy1)
+
+        inter = iw * ih
+        area_a = max(0.0, ax2 - ax1) * max(0.0, ay2 - ay1)
+        area_b = max(0.0, bx2 - bx1) * max(0.0, by2 - by1)
+
+        union = area_a + area_b - inter + 1e-9
+        return inter / union
+
+    def _nms_xyxy(self, boxes, scores, iou_th=0.5):
+        """Non-Maximum Suppression to remove overlapping spot detections."""
+        if len(boxes) == 0:
+            return []
+
+        boxes = np.array(boxes, dtype=float)
+        scores = np.array(scores, dtype=float)
+
+        x1 = boxes[:, 0]
+        y1 = boxes[:, 1]
+        x2 = boxes[:, 2]
+        y2 = boxes[:, 3]
+        areas = (x2 - x1).clip(min=0) * (y2 - y1).clip(min=0)
+        order = scores.argsort()[::-1]
+
+        keep = []
+        while order.size > 0:
+            i = order[0]
+            keep.append(int(i))
+            if order.size == 1:
+                break
+            rest = order[1:]
+
+            xx1 = np.maximum(x1[i], x1[rest])
+            yy1 = np.maximum(y1[i], y1[rest])
+            xx2 = np.minimum(x2[i], x2[rest])
+            yy2 = np.minimum(y2[i], y2[rest])
+
+            w = np.maximum(0.0, xx2 - xx1)
+            h = np.maximum(0.0, yy2 - yy1)
+            inter = w * h
+            iou = inter / (areas[i] + areas[rest] - inter + 1e-9)
+
+            order = rest[iou <= iou_th]
+        return keep
 
     def _generate_demo_grid(self, frame):
-        """Creates a fake grid of spots for testing without the model."""
-        h, w, _ = frame.shape
         spots = []
-        # Generate 10 spots in a row
         start_x, start_y = 200, 400
         spot_w, spot_h = 100, 150
-
-        for i in range(8):
+        for i in range(5):
             x1 = start_x + (i * (spot_w + 10))
-            y1 = start_y
-            x2 = x1 + spot_w
-            y2 = y1 + spot_h
-            spots.append([x1, y1, x2, y2])
-            # Also create mask polygons for demo spots
-            self.spot_masks.append(self._bbox_to_polygon([x1, y1, x2, y2]))
-            # Demo spots are all parking spaces (class 1)
-            self.spot_classes.append(1)
-        
+            spots.append([x1, start_y, x1 + spot_w, start_y + spot_h])
         return spots
