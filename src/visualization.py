@@ -12,52 +12,67 @@ class Visualizer:
 
     def draw_spots(self, frame, spot_statuses):
         """Draws the grid of parking spots with status."""
-
+        
+        # Create a single overlay for all transparency operations
+        overlay = frame.copy()
+        
         for spot in spot_statuses:
             x1, y1, x2, y2 = spot["bbox"]
             occupied = spot["occupied"]
-
-            color = self.COLOR_OCCUPIED if occupied else self.COLOR_FREE
-
-            # 1. Draw the Spot Box
-            cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
-
-            # 2. Draw Overlay (Transparent Fill) if occupied
+            
+            # Determine Color/Text
             if occupied:
-                overlay = frame.copy()
-                cv2.rectangle(overlay, (x1, y1), (x2, y2), color, -1)
-                cv2.addWeighted(overlay, 0.3, frame, 0.7, 0, frame)
+                color = self.COLOR_OCCUPIED
+                text = "TAKEN"
+            else:
+                color = self.COLOR_FREE
+                text = "FREE"
 
-                # Show which car is taking the spot
-                if spot["car_id"]:
-                    label = f"Taken: #{spot['car_id']}"
-                    cv2.putText(
-                        frame,
-                        label,
-                        (x1, y1 + 20),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        0.5,
-                        self.COLOR_TEXT,
-                        1,
-                    )
+            # 1. Draw Fill on Overlay (Transparency layer)
+            cv2.rectangle(overlay, (x1, y1), (x2, y2), color, -1)
+            
+            # 2. Draw Text Label
+            # Calculate centered text position
+            (text_w, text_h), _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
+            cx = (x1 + x2) // 2
+            cy = (y1 + y2) // 2
+            
+            cv2.putText(
+                frame, # Draw text on the sharp frame, not overlay
+                text,
+                (cx - text_w // 2, cy + text_h // 2),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.5,
+                self.COLOR_TEXT,
+                1,
+                cv2.LINE_AA
+            )
+
+        # 3. Apply the overlay blending ONCE
+        alpha = 0.3 # Transparency factor
+        cv2.addWeighted(overlay, alpha, frame, 1 - alpha, 0, frame)
+
+        # 4. Draw Borders (Sharp lines on top)
+        for spot in spot_statuses:
+            x1, y1, x2, y2 = spot["bbox"]
+            occupied = spot["occupied"]
+            color = self.COLOR_OCCUPIED if occupied else self.COLOR_FREE
+            # Thicker border for better visibility
+            cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
 
         return frame
 
     def draw_cars(self, frame, cars):
-        """Draws cars (Simplified since spots now handle the main colors)."""
-        for car in cars:
-            x1, y1, x2, y2 = map(int, car["bbox"])
-
-            # We assume the spot visualizer handles the red/green logic.
-            # Here we just draw a subtle box for the car so we know it's detected.
-            color = (255, 200, 0)  # Orange/Yellow for raw car detection
-
-            cv2.rectangle(frame, (x1, y1), (x2, y2), color, 1)
-
-            # Draw Center Point (Crucial for debugging alignment)
-            if "center_point" in car:
-                cx, cy = car["center_point"]
-                cv2.circle(frame, (cx, cy), 4, (0, 255, 255), -1)
+        """
+        Draws cars.
+        For Non-Engineer view, we hide the raw car boxes to avoid clutter.
+        Only the Spot status matters.
+        """
+        # UNCOMMENT below to debug raw detections
+        # for car in cars:
+        #     x1, y1, x2, y2 = map(int, car["bbox"])
+        #     color = (255, 200, 0)
+        #     cv2.rectangle(frame, (x1, y1), (x2, y2), color, 1)
 
         return frame
 

@@ -15,7 +15,7 @@ def detect(frame):
     Runs tracking on the frame using the custom model.
     """
     # Run tracker
-    results = model.track(frame, persist=True, conf=0.3, verbose=False)
+    results = model.track(frame, persist=True, conf=0.15, verbose=False)
 
     detections = []
 
@@ -49,3 +49,44 @@ def detect(frame):
                 )
 
     return detections
+
+
+def is_car_in_roi(frame, bbox):
+    """
+    Checks if a car is present in the specified Region of Interest (ROI).
+    bbox: [x1, y1, x2, y2]
+    """
+    x1, y1, x2, y2 = map(int, bbox)
+    
+    # Context Padding: Add significant context. 
+    # The spots might be very thin strips, so adding vertical padding helps aspect ratio.
+    padding = 40 
+    h, w = frame.shape[:2]
+    
+    x1 = max(0, x1 - padding)
+    y1 = max(0, y1 - padding)
+    x2 = min(w, x2 + padding)
+    y2 = min(h, y2 + padding)
+
+    # Crop the spot image
+    crop = frame[y1:y2, x1:x2]
+
+    # If crop is too small or invalid, return False
+    if crop.size == 0 or crop.shape[0] < 10 or crop.shape[1] < 10:
+        return False
+
+    # Run Detection on the crop
+    # Lowered confidence substantially
+    try:
+        results = model(crop, conf=0.1, verbose=False)
+        
+        for r in results:
+            if len(r.boxes) > 0:
+                # DEBUG: Print the confidence of the first hit just to see in console
+                # print(f"DEBUG: Spot Hit! Conf: {r.boxes.conf[0]:.2f}")
+                return True
+                
+        return False
+    except Exception as e:
+        print(f"⚠️ Detection Error on crop: {e}")
+        return False

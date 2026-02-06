@@ -22,13 +22,6 @@ def load_config():
         return yaml.safe_load(f)
 
 
-def get_bottom_center(bbox):
-    x1, y1, x2, y2 = bbox
-    cx = int((x1 + x2) // 2)
-    cy = int(y2)
-    return (cx, cy)
-
-
 def main():
     # 1. SETUP
     config = load_config()
@@ -49,77 +42,48 @@ def main():
         print("❌ Error: Could not read video for initial scan.")
         return
 
-    track_history = {}
-    print("✅ System Ready. Using Spot Detection + Car Tracking.")
+    # PERFORMANCE METRICS
+    import time
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    print(f"info: Total Frames in Video: {total_frames}")
+    
+    fps_start_time = time.time()
+    frame_count = 0
+
+    print("✅ System Ready. Using Static Spot Detection (Crop-based).")
 
     while True:
         success, frame = cap.read()
         if not success:
             break
+            
+        frame_count += 1
+        
+        # Calculate FPS every 10 frames
+        if frame_count % 10 == 0:
+            elapsed = time.time() - fps_start_time
+            current_fps = frame_count / elapsed
+            print(f"\r🚀 Speed: {current_fps:.2f} FPS (Frame {frame_count}/{total_frames})", end="")
+
 
         # -------------------------------------------------
-        # 3. DETECTION & TRACKING
+        # 3. DETECTION & STATIC CHECK
         # -------------------------------------------------
+        # Step 1: Detect all cars in the frame (Global Context = Better Accuracy)
         cars = detector.detect(frame)
 
-        # -------------------------------------------------
-        # 4. CAR STABILITY LOGIC (Phase 5 Logic)
-        # We still need this to know if a car is 'Parked' or 'Driving'
-        # before we assign it to a spot.
-        # -------------------------------------------------
-        for car in cars:
-            track_id = car["id"]
-            cx, cy = get_bottom_center(car["bbox"])
-            car["center_point"] = (cx, cy)
+        # Step 2: Check which static spots contain these cars
+        spot_statuses = spot_manager.update_occupancy(cars)
 
-            if track_id not in track_history:
-                track_history[track_id] = {
-                    "stationary_counter": 0,
-                    "last_position": (cx, cy),
-                    "parked": False,
-                }
-
-            # Movement Check
-            prev_cx, prev_cy = track_history[track_id]["last_position"]
-            distance = ((cx - prev_cx) ** 2 + (cy - prev_cy) ** 2) ** 0.5
-            track_history[track_id]["last_position"] = (cx, cy)
-
-            if distance < 5:
-                track_history[track_id]["stationary_counter"] += 1
-                if track_history[track_id]["stationary_counter"] > 100:
-                    track_history[track_id]["stationary_counter"] = 100
-            else:
-                track_history[track_id]["stationary_counter"] = max(
-                    0, track_history[track_id]["stationary_counter"] - 2
-                )
-
-            # Determine Parked Status (Score > 45)
-            # Note: We removed the 'corridor' check because the Spot Manager handles location now.
-            if track_history[track_id]["stationary_counter"] > 45:
-                track_history[track_id]["parked"] = True
-            elif track_history[track_id]["stationary_counter"] < 20:
-                track_history[track_id]["parked"] = False
-
-            car["is_parked"] = track_history[track_id]["parked"]
-
-        # -------------------------------------------------
-        # 5. SPOT OCCUPANCY LOGIC
-        # -------------------------------------------------
-        # This matches the stable cars to the detected spots
-        spot_statuses = spot_manager.check_occupancy(cars)
-
-        # Calculate Counts (excluding blocked spaces from total)
+        # Calculate Counts
         parking_spaces = [s for s in spot_statuses if not s.get("is_blocked", False)]
-        blocked_spaces = [s for s in spot_statuses if s.get("is_blocked", False)]
-        
-        total_spots = len(parking_spaces)  # Only count parking spaces, not blocked
         occupied_spots = sum(1 for s in parking_spaces if s["occupied"])
+        total_spots = len(parking_spaces)
 
         # -------------------------------------------------
-        # 6. VISUALIZATION
+        # 4. VISUALIZATION
         # -------------------------------------------------
-        frame = viz.draw_spots(frame, spot_statuses)  # Draw the grid (includes blocked)
-        frame = viz.draw_cars(frame, cars)  # Draw the cars
+        frame = viz.draw_spots(frame, spot_statuses)  # Draw the grid (red/green based on occupancy)
         frame = viz.draw_dashboard(frame, total_spots, occupied_spots)
 
         cv2.imshow(WINDOW_NAME, frame)
