@@ -1,0 +1,109 @@
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36" version="29.3.8">
+  <diagram name="Page-1" id="5pMftEEo1rtpRAAkgACA">
+    <mxGraphModel dx="1394" dy="949" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="3300" pageHeight="4681" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="MM7csQjEPZ-wMOTDT02t-8" edge="1" parent="1" source="MM7csQjEPZ-wMOTDT02t-1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="MM7csQjEPZ-wMOTDT02t-2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="MM7csQjEPZ-wMOTDT02t-1" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="CCTV Camera Videos" vertex="1">
+          <mxGeometry height="60" width="120" x="40" y="220" as="geometry" />
+        </mxCell>
+        <mxCell id="MM7csQjEPZ-wMOTDT02t-9" edge="1" parent="1" source="MM7csQjEPZ-wMOTDT02t-2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="MM7csQjEPZ-wMOTDT02t-4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="MM7csQjEPZ-wMOTDT02t-10" edge="1" parent="1" source="MM7csQjEPZ-wMOTDT02t-2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="MM7csQjEPZ-wMOTDT02t-3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="MM7csQjEPZ-wMOTDT02t-2" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Select 2000 images&lt;br&gt;by time partition" vertex="1">
+          <mxGeometry height="60" width="120" x="220" y="220" as="geometry" />
+        </mxCell>
+        <mxCell id="MM7csQjEPZ-wMOTDT02t-11" edge="1" parent="1" source="MM7csQjEPZ-wMOTDT02t-3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="MM7csQjEPZ-wMOTDT02t-6">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="MM7csQjEPZ-wMOTDT02t-3" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="Annotate Parking Lot&lt;div&gt;Roboflow&lt;/div&gt;" vertex="1">
+          <mxGeometry height="60" width="120" x="340" y="330" as="geometry" />
+        </mxCell>
+        <mxCell id="MM7csQjEPZ-wMOTDT02t-12" edge="1" parent="1" source="MM7csQjEPZ-wMOTDT02t-4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" target="MM7csQjEPZ-wMOTDT02t-5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="MM7csQjEPZ-wMOTDT02t-4" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="Annotate Cars&lt;br&gt;Roboflow" vertex="1">
+          <mxGeometry height="60" width="120" x="340" y="110" as="geometry" />
+        </mxCell>
+        <mxCell id="MM7csQjEPZ-wMOTDT02t-13" edge="1" parent="1" source="MM7csQjEPZ-wMOTDT02t-5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="MM7csQjEPZ-wMOTDT02t-7">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="MM7csQjEPZ-wMOTDT02t-5" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="Train Cars Detection Model Yolo 11" vertex="1">
+          <mxGeometry height="60" width="120" x="550" y="110" as="geometry" />
+        </mxCell>
+        <mxCell id="MM7csQjEPZ-wMOTDT02t-14" edge="1" parent="1" source="MM7csQjEPZ-wMOTDT02t-6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="MM7csQjEPZ-wMOTDT02t-7">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="720" y="250" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="MM7csQjEPZ-wMOTDT02t-6" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="Train Parking Lot Detection Model Yolo 11" vertex="1">
+          <mxGeometry height="60" width="120" x="550" y="330" as="geometry" />
+        </mxCell>
+        <mxCell id="MM7csQjEPZ-wMOTDT02t-16" edge="1" parent="1" source="MM7csQjEPZ-wMOTDT02t-7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" target="MM7csQjEPZ-wMOTDT02t-15">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="MM7csQjEPZ-wMOTDT02t-7" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" value="Call and Make use of The Models" vertex="1">
+          <mxGeometry height="60" width="120" x="770" y="220" as="geometry" />
+        </mxCell>
+        <mxCell id="MM7csQjEPZ-wMOTDT02t-15" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Connect to the visual&amp;nbsp;&lt;br&gt;Show parking lots avaliable" vertex="1">
+          <mxGeometry height="60" width="120" x="990" y="220" as="geometry" />
+        </mxCell>
+        <mxCell id="MM7csQjEPZ-wMOTDT02t-25" edge="1" parent="1" source="MM7csQjEPZ-wMOTDT02t-17" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="MM7csQjEPZ-wMOTDT02t-18">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="MM7csQjEPZ-wMOTDT02t-17" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Live CCTV camera" vertex="1">
+          <mxGeometry height="60" width="120" x="40" y="610" as="geometry" />
+        </mxCell>
+        <mxCell id="MM7csQjEPZ-wMOTDT02t-26" edge="1" parent="1" source="MM7csQjEPZ-wMOTDT02t-18" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="MM7csQjEPZ-wMOTDT02t-19">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="MM7csQjEPZ-wMOTDT02t-18" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="Tune to 9 FPS&lt;br&gt;Video" vertex="1">
+          <mxGeometry height="60" width="120" x="200" y="610" as="geometry" />
+        </mxCell>
+        <mxCell id="MM7csQjEPZ-wMOTDT02t-27" edge="1" parent="1" source="MM7csQjEPZ-wMOTDT02t-19" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" target="MM7csQjEPZ-wMOTDT02t-20">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="MM7csQjEPZ-wMOTDT02t-19" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" value="Get the picture when there is 0 to 3 cars in the parking lot" vertex="1">
+          <mxGeometry height="60" width="120" x="380" y="610" as="geometry" />
+        </mxCell>
+        <mxCell id="MM7csQjEPZ-wMOTDT02t-28" edge="1" parent="1" source="MM7csQjEPZ-wMOTDT02t-20" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" target="MM7csQjEPZ-wMOTDT02t-21">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="MM7csQjEPZ-wMOTDT02t-20" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" value="use parking spots detection model to detect the parking spots and save them" vertex="1">
+          <mxGeometry height="60" width="120" x="570" y="610" as="geometry" />
+        </mxCell>
+        <mxCell id="MM7csQjEPZ-wMOTDT02t-29" edge="1" parent="1" source="MM7csQjEPZ-wMOTDT02t-21" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="MM7csQjEPZ-wMOTDT02t-23">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="MM7csQjEPZ-wMOTDT02t-21" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" value="use car model to detect if the car is cross over the saved coordinates" vertex="1">
+          <mxGeometry height="60" width="120" x="760" y="610" as="geometry" />
+        </mxCell>
+        <mxCell id="MM7csQjEPZ-wMOTDT02t-22" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="1 frame clear parking lot" vertex="1">
+          <mxGeometry height="30" width="60" x="600" y="560" as="geometry" />
+        </mxCell>
+        <mxCell id="MM7csQjEPZ-wMOTDT02t-30" edge="1" parent="1" source="MM7csQjEPZ-wMOTDT02t-23" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" target="MM7csQjEPZ-wMOTDT02t-20">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1110" y="640" />
+              <mxPoint x="1110" y="770" />
+              <mxPoint x="630" y="770" />
+            </Array>
+            <mxPoint x="620" y="810" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="MM7csQjEPZ-wMOTDT02t-23" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Connect to the visual&amp;nbsp;&lt;br&gt;Show parking lots avaliable" vertex="1">
+          <mxGeometry height="60" width="120" x="970" y="610" as="geometry" />
+        </mxCell>
+        <mxCell id="MM7csQjEPZ-wMOTDT02t-32" parent="1" style="text;html=1;whiteSpace=wrap;overflow=hidden;rounded=0;" value="&lt;h1 style=&quot;margin-top: 0px;&quot;&gt;&lt;span style=&quot;background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255)); font-size: 12px; font-weight: normal;&quot;&gt;re do the re detecting parking spot every 1 am&lt;/span&gt;&lt;/h1&gt;" vertex="1">
+          <mxGeometry height="110" width="350" x="720" y="730" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
