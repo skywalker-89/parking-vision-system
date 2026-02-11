@@ -36,6 +36,22 @@ class SpotManager:
                 return full_path
         return None
 
+    def detect_spots_from_frame(self, frame):
+        """
+        Force re-detection of spots from the provided frame.
+        Saves to JSON and updates self.spots.
+        """
+        print("🔄 Re-detecting spots from current video frame...")
+        if self.model:
+            detected_spots = self._run_yolo_detection(frame)
+            if len(detected_spots) > 0:
+                self._save_spots_to_json(detected_spots, frame.shape)
+                self.spots = detected_spots  # Already in frame coordinates
+                return True
+            else:
+                print("❌ re-detection failed: No spots found.")
+        return False
+
     def detect_spots_initial(self, video_frame):
         """
         The Master Logic:
@@ -44,7 +60,7 @@ class SpotManager:
         3. If Reference found -> Detect spots, SAVE to JSON, scale to video, DONE.
         4. If No Reference -> Fallback to Manual Grid.
         """
-
+        
         # -------------------------------------------------------------
         # STEP 1: Try Loading from JSON (The "Saved" Mode)
         # -------------------------------------------------------------
@@ -112,7 +128,9 @@ class SpotManager:
                     print(
                         "❌ Model ran on reference image but found 0 spots. Check model/image."
                     )
-
+            
+            # If reference image detection failed, fall through to fallback
+        
         # -------------------------------------------------------------
         # STEP 3: Fallback (Manual Grid)
         # -------------------------------------------------------------
