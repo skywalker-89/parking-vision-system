@@ -12,7 +12,7 @@ from modules.parking_logic.spot_manager import SpotManager  # NEW IMPORT
 from src.visualization import Visualizer
 
 # CONFIGURATION
-VIDEO_PATH = os.path.join("videos", "4min_demo.mp4")
+VIDEO_PATH = os.path.join("videos", "4min_demo3.mov")
 CONFIG_PATH = os.path.join("config", "config.yaml")
 WINDOW_NAME = "Parking Vision System (Two-Model Architecture)"
 
