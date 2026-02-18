@@ -5,6 +5,8 @@ import json
 from ultralytics import YOLO
 
 
+from .perspective import PerspectiveManager
+
 class SpotManager:
     def __init__(self, model_filename="spots.pt"):
         # 1. Setup Paths
@@ -23,6 +25,9 @@ class SpotManager:
         self.spots = []
         self.model = None
 
+        # Initialize Perspective Transform
+        self.perspective = PerspectiveManager()
+
         if self.model_path:
             print(f"✅ Spot Model found: {self.model_path}")
             self.model = YOLO(self.model_path)
@@ -36,6 +41,22 @@ class SpotManager:
                 return full_path
         return None
 
+    def detect_spots_from_frame(self, frame):
+        """
+        Force re-detection of spots from the provided frame.
+        Saves to JSON and updates self.spots.
+        """
+        print("🔄 Re-detecting spots from current video frame...")
+        if self.model:
+            detected_spots = self._run_yolo_detection(frame)
+            if len(detected_spots) > 0:
+                self._save_spots_to_json(detected_spots, frame.shape)
+                self.spots = detected_spots  # Already in frame coordinates
+                return True
+            else:
+                print("❌ re-detection failed: No spots found.")
+        return False
+
     def detect_spots_initial(self, video_frame):
         """
         The Master Logic:
@@ -44,7 +65,7 @@ class SpotManager:
         3. If Reference found -> Detect spots, SAVE to JSON, scale to video, DONE.
         4. If No Reference -> Fallback to Manual Grid.
         """
-
+        
         # -------------------------------------------------------------
         # STEP 1: Try Loading from JSON (The "Saved" Mode)
         # -------------------------------------------------------------
@@ -112,7 +133,9 @@ class SpotManager:
                     print(
                         "❌ Model ran on reference image but found 0 spots. Check model/image."
                     )
-
+            
+            # If reference image detection failed, fall through to fallback
+        
         # -------------------------------------------------------------
         # STEP 3: Fallback (Manual Grid)
         # -------------------------------------------------------------
@@ -190,8 +213,10 @@ class SpotManager:
 
     def update_occupancy(self, cars):
         """
-        Updates occupancy by checking if any detected car overlaps significantly with a spot.
-        Uses Intersection Area / Spot Area ratio.
+        Updates occupancy using a Global Best-Match strategy (Hungarian-style greedy).
+        1. Calculate distances for ALL (car, spot) pairs.
+        2. Sort by distance (closest first).
+        3. Assign matches if distance < Threshold.
         """
         # 1. Initialize all spots as empty
         spot_statuses = [
@@ -199,31 +224,41 @@ class SpotManager:
             for i, spot in enumerate(self.spots, start=1)
         ]
 
-        # 2. Map cars to spots
-        for car in cars:
-            cx1, cy1, cx2, cy2 = car["bbox"]
-            car_area = (cx2 - cx1) * (cy2 - cy1)
+        # 2. Collect all candidate matches
+        # Format: (distance, car_index, spot_index)
+        candidates = []
+        
+        # Pre-calculate BEV positions to avoid re-calc in loops
+        cars_bev = [self.perspective.get_car_footprint(c["bbox"]) for c in cars]
+        spots_bev = [self.perspective.get_spot_center_bev(s["bbox"]) for s in spot_statuses]
 
-            for status in spot_statuses:
-                sx1, sy1, sx2, sy2 = status["bbox"]
-                spot_area = (sx2 - sx1) * (sy2 - sy1)
+        for c_idx, (cx, cy) in enumerate(cars_bev):
+            for s_idx, (sx, sy) in enumerate(spots_bev):
+                # Calculate Euclidean Distance
+                dist = ((cx - sx)**2 + (cy - sy)**2)**0.5
+                
+                # Loose threshold to filter out obvious non-matches
+                if dist < 70: 
+                    candidates.append((dist, c_idx, s_idx))
 
-                # Calculate Intersection
-                ix1 = max(cx1, sx1)
-                iy1 = max(cy1, sy1)
-                ix2 = min(cx2, sx2)
-                iy2 = min(cy2, sy2)
+        # 3. Sort by distance (Closest matches first)
+        candidates.sort(key=lambda x: x[0])
 
-                if ix1 < ix2 and iy1 < iy2:
-                    inter_area = (ix2 - ix1) * (iy2 - iy1)
-                    
-                    # Check Overlap Ratio
-                    # If car covers significant portion of the spot OR spot covers car
-                    # We use (Intersection / Spot Area) > 0.40 (40%)
-                    # This prevents neighbor cars (with loose boxes) from triggering adjacent spots
-                    if (inter_area / spot_area) > 0.40:
-                        status["occupied"] = True
-                        status["car_id"] = car["id"]
+        # 4. Assign matches
+        occupied_cars = set()
+        occupied_spots = set()
+
+        for dist, c_idx, s_idx in candidates:
+            # If car or spot is already taken, skip
+            if c_idx in occupied_cars or s_idx in occupied_spots:
+                continue
+
+            # Assign
+            spot_statuses[s_idx]["occupied"] = True
+            spot_statuses[s_idx]["car_id"] = cars[c_idx]["id"]
+            
+            occupied_cars.add(c_idx)
+            occupied_spots.add(s_idx)
         
         return spot_statuses
 
