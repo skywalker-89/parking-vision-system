@@ -1,0 +1,5 @@
+Model,imgsz,mAP50,mAP50_95,Speed_CPU_ONNX_ms,Speed_GPU_ms,params_M,FLOPs_B,pt_path,onnx_path
+y11n,640,0.955066,0.775859,30.354455,26.890465,2.590035,3.220301,"runs\detect\y11n\weights\best.pt","runs\detect\y11n\weights\best.onnx"
+y11s,640,0.963956,0.812329,58.128487,10.891981,9.428179,10.774246,"runs\detect\y11s\weights\best.pt","runs\detect\y11s\weights\best.onnx"
+y26n,640,0.951268,0.752546,26.586376,10.676382,2.504190,2.885888,"runs\detect\y26n\weights\best.pt","runs\detect\y26n\weights\best.onnx"
+y26s,640,0.962079,0.808072,54.596607,11.157824,9.948638,11.249357,"runs\detect\y26s\weights\best.pt","runs\detect\y26s\weights\best.onnx"
