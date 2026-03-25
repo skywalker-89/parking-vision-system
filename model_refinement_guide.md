@@ -1,6 +1,6 @@
-# YOLOv8 Model Refinement & Optimization Guide
+# YOLOv11 Model Refinement & Optimization Guide
 
-This guide describes how to **modify usage of the YOLOv8 architecture**, **retrain** it on your dataset, and **benchmark** the results to prove improvements in Speed (FPS) or Performance (mAP).
+This guide describes how to **modify usage of the YOLOv11 architecture**, **retrain** it on your dataset, and **benchmark** the results to prove improvements in Speed (FPS) or Performance (mAP).
 
 ---
 
@@ -25,9 +25,9 @@ First, verify your current performance so we have numbers to beat.
 To "modify layers and modules", we change the YAML configuration file that defines the neural network structure.
 
 1.  **Create a Custom Config**:
-    Find `yolov8n.yaml` (or whatever size `s`, `m`, `l` you used). Copy it to a new file named `custom_yolov8.yaml`.
+    Find `yolov11n.yaml` (or whatever size `s`, `m`, `l` you used). Copy it to a new file named `custom_yolov11.yaml`.
 
-2.  **Edit `custom_yolov8.yaml`**:
+2.  **Edit `custom_yolov11.yaml`**:
     Open it in a text editor (Notepad, VS Code).
     
     **Option A: Make it Faster (Lighter Backbone)**
@@ -45,7 +45,7 @@ You cannot use the old weights (`best.pt`) with a new architecture. You must ret
 
 Run this command:
 ```bash
-yolo train model=custom_yolov8.yaml data=path/to/data.yaml epochs=50 imgsz=640 name=custom_model_run
+yolo train model=custom_yolov11.yaml data=path/to/data.yaml epochs=50 imgsz=640 name=custom_model_run
 ```
 *Note: We point `model` to the .yaml file, NOT the .pt file.*
 
@@ -171,9 +171,9 @@ After doing all steps, fill in this table for your professor:
 
 | Metric | Original Model | Custom Modified Model | Improvement |
 | :--- | :--- | :--- | :--- |
-| **Architecture** | YOLOv8n (Standard) | YOLOv8-Ghost (Custom) | Modified Layers |
+| **Architecture** | YOLOv11n (Standard) | YOLOv11-Ghost (Custom) | Modified Layers |
 | **mAP@50** | 0.94 | 0.93 | -1.0% |
 | **FPS (GPU)** | 145 FPS | 185 FPS | +27% (Faster!) |
 | **Model Size** | 6.2 MB | 4.1 MB | -33% (Smaller) |
 
-> **Conclusion**: "We modified the YOLOv8 architecture by replacing standard convolutions with Ghost convolutions. This resulted in a model that is **27% faster** with only a negligible drop in accuracy, meeting the goal of optimization."
+> **Conclusion**: "We modified the YOLOv11 architecture by replacing standard convolutions with Ghost convolutions. This resulted in a model that is **27% faster** with only a negligible drop in accuracy, meeting the goal of optimization."

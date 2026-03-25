@@ -7,7 +7,7 @@ A robust, AI-powered system for detecting parking spot occupancy using computer 
 ## 🚀 Features
 1.  **Dual-Model Architecture**:
     *   **Spot Detection (`spots.pt`)**: Automatically identifies parking spot lines and locations (runs once or on trigger).
-    *   **Car Detection (`best.pt`)**: Real-time YOLOv8 model to detect cars in every frame.
+    *   **Car Detection (`best.pt`)**: Real-time YOLOv11 model to detect cars in every frame.
 2.  **Smart Occupancy Logic**: Uses Perspective Transformation (Homography) to map cars to spots in a "Bird's Eye View", solving perspective distortion issues.
 3.  **Dynamic Updates**: Includes a simulation clock (24h cycle). At **2 AM**, if traffic is low, it re-calibrates spot positions to account for camera movement.
 4.  **Robust Visualization**: Clear overlays, occupancy dashboard, and simulation time display.
