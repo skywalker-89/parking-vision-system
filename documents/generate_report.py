@@ -271,19 +271,34 @@ def make_introduction(doc):
     ]:
         add_bullet(doc, obj)
 
-    add_heading(doc, "1.4 Report Structure", level=2)
+    add_heading(doc, "1.4 Scope", level=2)
     add_body(doc,
-        "The remainder of this report is structured as follows: Section 2 reviews related work in "
-        "parking detection and object detection. Section 3 describes the system architecture and design. "
-        "Section 4 details the implementation. Section 5 presents experimental results and evaluation. "
-        "Section 6 provides discussion and analysis. Section 7 concludes the report with directions "
-        "for future work. References follow.",
+        "This project focuses on a single fixed-camera, single-zone parking lot deployment. The scope "
+        "includes: the design and implementation of the dual-model YOLOv11 detection pipeline; "
+        "Bird's Eye View perspective normalisation; greedy occupancy matching; self-healing "
+        "recalibration; and a real-time OpenCV dashboard overlay. Out of scope are multi-camera "
+        "orchestration, cloud/IoT integration, licence plate recognition, and edge hardware "
+        "optimisation — these are identified as directions for future work.",
+        indent=True
+    )
+
+    add_heading(doc, "1.5 Report Structure", level=2)
+    add_body(doc,
+        "The remainder of this report is structured as follows: Chapter 2 reviews the status quo — "
+        "traditional and camera-based parking systems and the identified research gap. Chapter 3 "
+        "presents the key insights derived from the problem analysis that motivate the design "
+        "decisions. Chapter 4 describes the proposed framework and system architecture in detail. "
+        "Chapter 5 details the implementation tools and algorithms. Chapter 6 presents the "
+        "experimental results and evaluation. Chapter 7 provides a broader discussion of strengths, "
+        "limitations, and practical impact. Chapter 8 concludes the report with a summary of "
+        "contributions and directions for future work. References and appendices follow.",
         indent=True
     )
 
 
 def make_literature_review(doc):
-    add_heading(doc, "2. Literature Review", level=1)
+    # Chapter 2 — Status Quo
+    add_heading(doc, "2. Status Quo: Literature Review and Current Limitations", level=1)
 
     add_heading(doc, "2.1 Traditional Parking Detection Methods", level=2)
     add_body(doc,
@@ -347,10 +362,122 @@ def make_literature_review(doc):
     )
 
 
-def make_system_architecture(doc):
-    add_heading(doc, "3. System Architecture", level=1)
 
-    add_heading(doc, "3.1 Overview", level=2)
+def make_insights(doc):
+    """Chapter 3 — Insights: analytical bridge between problem and solution."""
+    add_heading(doc, "3. Insights: From Problem Analysis to Design Decisions", level=1)
+    add_body(doc,
+        "This chapter synthesises the key insights derived from reviewing the limitations of existing "
+        "parking management approaches. Each insight directly motivates a specific design decision in "
+        "the proposed framework described in Chapter 4.",
+        indent=True
+    )
+
+    add_heading(doc, "3.1 Why Current Methods Fail", level=2)
+    add_body(doc,
+        "Physical sensor systems (magnetic loops, ultrasonic arrays) fail on two fundamental grounds. "
+        "First, they require one hardware unit per bay, making installation and maintenance costs grow "
+        "linearly with the size of the facility. A 200-bay car park may require 200 individually wired "
+        "sensors, each susceptible to vehicle vibration, weather, and electrical interference. Second, "
+        "they provide no visual context — a sensor reports occupied or vacant but cannot distinguish "
+        "a car from a shopping trolley or debris, nor adapt to layout changes without physical "
+        "reinstallation.",
+        indent=True
+    )
+    add_body(doc,
+        "Early camera-based approaches using hand-crafted features (HOG, colour histograms) failed "
+        "because they are brittle to illumination shifts, shadows, and viewpoint changes not seen "
+        "during training. A single-model deep learning detector partially solves the robustness "
+        "problem but conflates two fundamentally different sub-tasks — bay localisation and vehicle "
+        "detection — into one model, reducing accuracy for both.",
+        indent=True
+    )
+
+    add_heading(doc, "3.2 Why Perspective Distortion Matters", level=2)
+    add_body(doc,
+        "In any oblique or wide-angle parking camera, vehicles at the far end of the lot appear "
+        "significantly smaller than vehicles near the camera. If occupancy matching is performed "
+        "by comparing raw pixel positions, a fixed distance threshold (e.g., 70 px) will be too "
+        "large for vehicles near the camera (causing false matches between adjacent bays) and too "
+        "small for vehicles at the far end (causing missed occupancy events). This is not a "
+        "calibration problem that can be solved by adjusting a single number — it is a fundamental "
+        "geometric property of projective cameras.",
+        indent=True
+    )
+    add_body(doc,
+        "The insight is that matching must occur in a scale-normalised coordinate space. "
+        "Homography-based Bird's Eye View (BEV) projection maps the ground plane of the parking lot "
+        "onto a flat top-down canvas where one pixel corresponds to a fixed real-world distance "
+        "regardless of position in the original camera frame. After this transform, a single "
+        "distance threshold is geometrically consistent across the entire parking zone.",
+        indent=True
+    )
+
+    add_heading(doc, "3.3 Why Dual-Model is Better than Single-Model", level=2)
+    add_body(doc,
+        "A single model tasked with jointly detecting parking bays and vehicles faces a fundamental "
+        "tension: parking bays are static, rectangular, and best detected from a clean reference "
+        "image with no occlusion; vehicles are dynamic, appear in varying orientations, and must be "
+        "detected under occlusion, motion blur, and diverse lighting. Training one model to perform "
+        "both tasks simultaneously either forces a compromise in accuracy for each task or requires "
+        "a large, complex architecture that is computationally expensive for real-time deployment.",
+        indent=True
+    )
+    add_body(doc,
+        "Separating the tasks into two dedicated models — spots.pt for bay localisation and best.pt "
+        "for vehicle tracking — allows each model to be optimised independently. spots.pt runs once "
+        "at startup on a clean reference image (low computational cost), while best.pt runs every "
+        "frame but only needs to detect one category (vehicles), keeping inference fast. The result "
+        "is a pipeline that is both more accurate and more computationally efficient than a unified "
+        "single-model approach.",
+        indent=True
+    )
+
+    add_heading(doc, "3.4 Why Recalibration is Needed", level=2)
+    add_body(doc,
+        "Camera positions in real-world deployments are not perfectly stable. Vibration from wind, "
+        "building settling, maintenance activities, or minor physical adjustments can cause the "
+        "camera to shift by even a few degrees. Because spot coordinates are stored in pixel space "
+        "relative to a specific camera view, even small angular drift renders the stored bay "
+        "positions inaccurate. This is a maintenance problem that, without an automated solution, "
+        "requires a technician to manually re-run spot detection and update the configuration — "
+        "potentially allowing systematic occupancy errors to persist for days or weeks.",
+        indent=True
+    )
+    add_body(doc,
+        "The insight is to exploit the predictable pattern of parking lot usage: occupancy drops to "
+        "near zero in the early morning hours (typically 1:00–3:00 AM). At this point, the live "
+        "camera frame is nearly identical to the clean reference image, making it ideal for "
+        "re-running the spot detector. An automated nightly recalibration at 2:00 AM therefore "
+        "self-corrects any accumulated camera drift without requiring human intervention.",
+        indent=True
+    )
+
+    add_heading(doc, "3.5 Design Principles Derived from the Analysis", level=2)
+    add_body(doc,
+        "The four insights above lead directly to five concrete design principles that govern the "
+        "architecture of the proposed system:",
+        indent=True
+    )
+    for principle, explanation in [
+        ("Separation of Concerns",
+         "Localise parking bays and detect vehicles with independent, task-specific models rather than a unified multi-task model."),
+        ("Reference-Based Initialisation",
+         "Detect bay positions once from a clean reference image and persist them to disk, avoiding redundant inference on every run."),
+        ("Scale-Normalised Matching",
+         "All car-to-spot proximity matching must occur in Bird's Eye View space to ensure geometric consistency across the parking zone."),
+        ("Autonomous Self-Healing",
+         "The system must be able to recover from camera drift without human intervention, using low-traffic windows for recalibration."),
+        ("Lightweight Real-Time Loop",
+         "The per-frame processing pipeline must be fast enough for real-time operation; heavy computations (spot detection, BEV calibration) must be amortised over many frames."),
+    ]:
+        add_bullet(doc, explanation, bold_prefix=principle)
+
+
+def make_system_architecture(doc):
+    add_heading(doc, "4. Proposed Framework: System Architecture", level=1)
+
+    add_heading(doc, "4.1 Overview", level=2)
     add_body(doc,
         "The system operates in two distinct phases: an Initialisation Phase that discovers and saves "
         "parking spot locations, and a continuous Main Processing Loop that detects vehicles, determines "
@@ -359,7 +486,7 @@ def make_system_architecture(doc):
         indent=True
     )
 
-    add_heading(doc, "3.2 Dual-Model Architecture", level=2)
+    add_heading(doc, "4.2 Dual-Model Architecture", level=2)
     add_body(doc,
         "Two independent YOLOv11 models serve distinct roles within the pipeline:",
         indent=True
@@ -374,7 +501,7 @@ def make_system_architecture(doc):
     )
     doc.add_paragraph()
 
-    add_heading(doc, "3.3 Initialisation Phase", level=2)
+    add_heading(doc, "4.3 Initialisation Phase", level=2)
     add_body(doc,
         "Prior to entering the main processing loop, the system bootstraps parking spot locations "
         "through the following decision chain implemented in SpotManager.detect_spots_initial():",
@@ -394,7 +521,7 @@ def make_system_architecture(doc):
         indent=True
     )
 
-    add_heading(doc, "3.4 Occupancy Matching — Bird's Eye View (BEV)", level=2)
+    add_heading(doc, "4.4 Occupancy Matching — Bird's Eye View (BEV)", level=2)
     add_body(doc,
         "The core intelligence of the system lies in its occupancy matching strategy, implemented in "
         "SpotManager.update_occupancy(). Rather than comparing car and spot positions in the distorted "
@@ -421,7 +548,7 @@ def make_system_architecture(doc):
         indent=True
     )
 
-    add_heading(doc, "3.5 Self-Healing Recalibration", level=2)
+    add_heading(doc, "4.5 Self-Healing Recalibration", level=2)
     add_body(doc,
         "Parking lot cameras may experience gradual drift due to vibration or maintenance adjustments. "
         "To address this automatically, the system tracks a simulated 24-hour clock. When the simulation "
@@ -432,7 +559,7 @@ def make_system_architecture(doc):
         indent=True
     )
 
-    add_heading(doc, "3.6 Visualisation", level=2)
+    add_heading(doc, "4.6 Visualisation and Dashboard", level=2)
     add_body(doc,
         "The Visualizer class (src/visualization.py) renders results on each frame using OpenCV:",
         indent=True
@@ -446,9 +573,9 @@ def make_system_architecture(doc):
 
 
 def make_implementation(doc):
-    add_heading(doc, "4. Implementation", level=1)
+    add_heading(doc, "5. Implementation: Tools and Module Structure", level=1)
 
-    add_heading(doc, "4.1 Technology Stack", level=2)
+    add_heading(doc, "5.1 Technology Stack", level=2)
     add_table(doc,
         headers=["Component", "Technology / Library", "Version"],
         rows=[
@@ -463,7 +590,7 @@ def make_implementation(doc):
     )
     doc.add_paragraph()
 
-    add_heading(doc, "4.2 Module Structure", level=2)
+    add_heading(doc, "5.2 Module Structure", level=2)
     add_body(doc,
         "The codebase is organised into clearly separated modules, each with a single responsibility:",
         indent=True
@@ -478,7 +605,7 @@ def make_implementation(doc):
     for name, desc in modules:
         add_bullet(doc, desc, bold_prefix=name)
 
-    add_heading(doc, "4.3 Configuration Files", level=2)
+    add_heading(doc, "5.3 Configuration Files", level=2)
     add_table(doc,
         headers=["File", "Purpose"],
         rows=[
@@ -491,8 +618,8 @@ def make_implementation(doc):
     )
     doc.add_paragraph()
 
-    add_heading(doc, "4.4 Key Algorithms", level=2)
-    add_heading(doc, "4.4.1 Non-Maximum Suppression (NMS)", level=3)
+    add_heading(doc, "5.4 Key Algorithms", level=2)
+    add_heading(doc, "5.4.1 Non-Maximum Suppression (NMS)", level=3)
     add_body(doc,
         "After the spot detector produces raw bounding box predictions, overlapping detections for the "
         "same physical bay are removed using a custom _nms_xyxy() implementation in SpotManager. Boxes "
@@ -500,7 +627,7 @@ def make_implementation(doc):
         "(IoU) > 0.4 with a higher-confidence box is suppressed.",
         indent=True
     )
-    add_heading(doc, "4.4.2 Greedy BEV Matching", level=3)
+    add_heading(doc, "5.4.2 Greedy BEV Matching", level=3)
     add_body(doc,
         "For each frame, BEV positions are pre-computed for all N cars and M spots (O(N+M) transforms). "
         "All N×M candidate distance pairs are evaluated, filtered to those below 70px, and sorted. The "
@@ -512,9 +639,9 @@ def make_implementation(doc):
 
 
 def make_experiments(doc):
-    add_heading(doc, "5. Experiments and Results", level=1)
+    add_heading(doc, "6. Results", level=1)
 
-    add_heading(doc, "5.1 Training Configuration", level=2)
+    add_heading(doc, "6.1 Training Configuration", level=2)
     add_body(doc,
         "All model variants were trained on a custom parking vehicle dataset using identical "
         "hyperparameters to ensure a fair comparison. Training was performed on a CUDA-enabled GPU.",
@@ -535,7 +662,7 @@ def make_experiments(doc):
     )
     doc.add_paragraph()
 
-    add_heading(doc, "5.2 Model Variants", level=2)
+    add_heading(doc, "6.2 Model Variants", level=2)
     add_body(doc,
         "Four YOLOv11 variants were trained to identify the best performing architecture for the car "
         "detection task:",
@@ -549,7 +676,7 @@ def make_experiments(doc):
     ]:
         add_bullet(doc, desc, bold_prefix=variant)
 
-    add_heading(doc, "5.3 Model Comparison — Final Epoch Results (Epoch 50)", level=2)
+    add_heading(doc, "6.3 Model Comparison — Final Epoch Results (Epoch 50)", level=2)
     add_body(doc,
         "Table 1 presents the performance metrics recorded at epoch 50 (final epoch) for all four "
         "model variants on the validation set.",
@@ -580,7 +707,7 @@ def make_experiments(doc):
         indent=True
     )
 
-    add_heading(doc, "5.4 Training Convergence", level=2)
+    add_heading(doc, "6.4 Training Convergence", level=2)
     add_body(doc,
         "Figure 1 shows the training and validation loss curves alongside key metrics across all 50 "
         "epochs for the selected model (y11s). All three loss components (box, classification, DFL) "
@@ -591,7 +718,7 @@ def make_experiments(doc):
     add_image(doc, IMG_RESULTS, "Figure 1. Training and validation curves for the selected y11s model (50 epochs).")
     doc.add_paragraph()
 
-    add_heading(doc, "5.5 Precision-Recall and F1 Analysis", level=2)
+    add_heading(doc, "6.5 Precision-Recall and F1 Analysis", level=2)
     add_body(doc,
         "Figure 2 presents the Precision-Recall (PR) curve for the y11s model at the optimal confidence "
         "threshold. A high area under the PR curve indicates robustness across confidence thresholds. "
@@ -603,7 +730,7 @@ def make_experiments(doc):
     add_image(doc, IMG_F1_CURVE, "Figure 3. F1-Confidence curve for the y11s model.", width=Inches(3.8))
     doc.add_paragraph()
 
-    add_heading(doc, "5.6 Confusion Matrix", level=2)
+    add_heading(doc, "6.6 Confusion Matrix", level=2)
     add_body(doc,
         "Figure 4 presents the normalised confusion matrix for the y11s model on the validation set. "
         "The high on-diagonal values confirm reliable classification, with minimal false positive and "
@@ -613,7 +740,7 @@ def make_experiments(doc):
     add_image(doc, IMG_CONFUSION, "Figure 4. Normalised confusion matrix — y11s model, validation set.")
     doc.add_paragraph()
 
-    add_heading(doc, "5.7 Validation Predictions", level=2)
+    add_heading(doc, "6.7 Validation Predictions", level=2)
     add_body(doc,
         "Figure 5 shows sample validation batch predictions from the y11s model, demonstrating accurate "
         "localisation of vehicles with high confidence scores across diverse scenes.",
@@ -622,7 +749,7 @@ def make_experiments(doc):
     add_image(doc, IMG_VAL_PRED, "Figure 5. Sample validation batch predictions — y11s model.")
     doc.add_paragraph()
 
-    add_heading(doc, "5.8 System Runtime Behaviour", level=2)
+    add_heading(doc, "6.8 System Runtime Behaviour", level=2)
     add_body(doc,
         "Table 2 summarises the system's observed behaviour across the four simulated time segments "
         "used in the demonstration video.",
@@ -640,7 +767,7 @@ def make_experiments(doc):
     )
     doc.add_paragraph()
 
-    add_heading(doc, "5.9 Reference Image — Spot Detection Output", level=2)
+    add_heading(doc, "6.9 Reference Image — Spot Detection Output", level=2)
     add_body(doc,
         "Figure 6 shows the reference image used for initial spot detection. The spot detector "
         "identified 37 parking bays at a resolution of 2688 × 1520 pixels. These coordinates are "
@@ -651,9 +778,9 @@ def make_experiments(doc):
 
 
 def make_discussion(doc):
-    add_heading(doc, "6. Discussion", level=1)
+    add_heading(doc, "7. Discussion", level=1)
 
-    add_heading(doc, "6.1 Strengths", level=2)
+    add_heading(doc, "7.1 Strengths", level=2)
     for point in [
         ("Dual-Model Separation", "Decoupling spot detection from vehicle detection makes each model smaller and more specialised, yielding higher accuracy than a single multi-task model would."),
         ("BEV Distance Matching", "Transforming positions to Bird's Eye View eliminates perspective-induced scale variation, making the 70px distance threshold effective across the entire field of view."),
@@ -662,7 +789,7 @@ def make_discussion(doc):
     ]:
         add_bullet(doc, point[1], bold_prefix=point[0])
 
-    add_heading(doc, "6.2 Limitations", level=2)
+    add_heading(doc, "7.2 Limitations", level=2)
     for point in [
         ("Fixed Camera Dependency", "The BEV homography matrix is calibrated for a single camera position. Any significant camera movement (short of the 2 AM recalibration) will degrade matching accuracy."),
         ("Fixed Distance Threshold", "The 70px BEV matching threshold is empirically set for this specific parking lot. Different lot geometries or camera heights may require tuning."),
@@ -671,19 +798,22 @@ def make_discussion(doc):
     ]:
         add_bullet(doc, point[1], bold_prefix=point[0])
 
-    add_heading(doc, "6.3 Future Work", level=2)
-    for point in [
-        ("Multi-Camera Fusion", "Extend the system to aggregate occupancy data from multiple cameras covering different zones, providing a facility-wide view."),
-        ("IoT Integration", "Stream occupancy data to a cloud backend (e.g., MQTT broker) to enable mobile app notifications and dynamic signage updates."),
-        ("License Plate Recognition", "Add an ALPR module to associate occupancy events with specific vehicles, enabling permit enforcement and entry/exit logging."),
-        ("Adaptive Threshold Learning", "Replace the fixed BEV distance threshold with an adaptive mechanism that learns the optimal threshold from historical occupancy data."),
-        ("Edge Deployment", "Optimise the models for embedded edge devices (NVIDIA Jetson, Raspberry Pi with Coral TPU) using quantisation and pruning to enable low-cost deployment."),
-    ]:
-        add_bullet(doc, point[1], bold_prefix=point[0])
+    add_heading(doc, "7.3 Practical Impact", level=2)
+    add_body(doc,
+        "The proposed system demonstrates that high-accuracy, real-time parking management is achievable "
+        "using purely software-based computer vision, without any per-bay sensor hardware. For a typical "
+        "100-bay parking facility, traditional sensor-based systems would require installation of 100 "
+        "individual sensor units with associated wiring and maintenance contracts. The vision-based approach "
+        "replaces this entirely with a single camera and a commodity computing device. The self-healing "
+        "mechanism further reduces the operational overhead by eliminating routine recalibration visits. "
+        "The real-time dashboard provides operators with immediate situational awareness, enabling dynamic "
+        "pricing, guided parking signage, and data-driven facility planning.",
+        indent=True
+    )
 
 
-def make_conclusion(doc):
-    add_heading(doc, "7. Conclusion", level=1)
+def make_conclusion(doc):  # Chapter 8
+    add_heading(doc, "8. Conclusion and Future Work", level=1)
     add_body(doc,
         "This project has successfully designed, implemented, and evaluated a Vision-Based Smart Parking "
         "Occupancy Detection System using a Dual YOLOv11 architecture. By separating the concerns of "
@@ -709,6 +839,29 @@ def make_conclusion(doc):
         "the field of intelligent transportation systems.",
         indent=True
     )
+
+    add_heading(doc, "8.1 Contributions", level=2)
+    add_body(doc,
+        "The primary technical contributions of this project are: (1) a dual-model YOLOv11 pipeline "
+        "that separates parking bay localisation from real-time vehicle tracking; (2) an application "
+        "of Bird's Eye View homography to eliminate perspective distortion in occupancy matching; "
+        "(3) a greedy BEV distance-matching algorithm that is both computationally efficient and "
+        "geometrically consistent; and (4) a self-healing automatic recalibration mechanism that "
+        "provides long-term operational robustness without human intervention. Together, these "
+        "components constitute a novel, integrated smart parking system validated by systematic "
+        "benchmarking of four YOLOv11 model variants.",
+        indent=True
+    )
+
+    add_heading(doc, "8.2 Future Extensions", level=2)
+    for point in [
+        ("Multi-Camera Fusion", "Extend the system to aggregate occupancy data from multiple cameras covering different zones, providing a facility-wide view."),
+        ("IoT Integration", "Stream occupancy data to a cloud backend (e.g., MQTT broker) to enable mobile app notifications and dynamic signage updates."),
+        ("License Plate Recognition", "Add an ALPR module to associate occupancy events with specific vehicles, enabling permit enforcement and entry/exit logging."),
+        ("Adaptive Threshold Learning", "Replace the fixed BEV distance threshold with an adaptive mechanism that learns the optimal threshold from historical occupancy data."),
+        ("Edge Deployment", "Optimise the models for embedded edge devices (NVIDIA Jetson, Raspberry Pi with Coral TPU) using quantisation and pruning to enable low-cost deployment."),
+    ]:
+        add_bullet(doc, point[1], bold_prefix=point[0])
 
 
 def make_references(doc):
@@ -819,19 +972,21 @@ def main():
     make_title_page(doc)
     make_abstract(doc)
     add_page_break(doc)
-    make_introduction(doc)
+    make_introduction(doc)          # Chapter 1
     add_page_break(doc)
-    make_literature_review(doc)
+    make_literature_review(doc)     # Chapter 2
     add_page_break(doc)
-    make_system_architecture(doc)
+    make_insights(doc)              # Chapter 3 (NEW)
     add_page_break(doc)
-    make_implementation(doc)
+    make_system_architecture(doc)   # Chapter 4
     add_page_break(doc)
-    make_experiments(doc)
+    make_implementation(doc)        # Chapter 5
     add_page_break(doc)
-    make_discussion(doc)
+    make_experiments(doc)           # Chapter 6
     add_page_break(doc)
-    make_conclusion(doc)
+    make_discussion(doc)            # Chapter 7
+    add_page_break(doc)
+    make_conclusion(doc)            # Chapter 8
     add_page_break(doc)
     make_references(doc)
     add_page_break(doc)
